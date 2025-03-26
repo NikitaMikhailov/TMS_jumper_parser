@@ -1,0 +1,26 @@
+logging:                  # настройка логирования
+  log_file: logs/system.log
+  log_level: INFO
+  max_bytes: 1048576
+  backup_count: 5
+
+serial:
+  ports:                  # порты для считывания данных с датчиков
+    - COM4 #/dev/ttyACM0
+    - /dev/ttyACM1
+    - /dev/ttyACM2
+    - /dev/ttyACM3
+  baudrate: 250000        # скорость порта
+  read_timeout: 0.1       # таймаут на считывание портов
+
+buffer:
+  flush_interval_ms: 1000 # интервал записи из буфера в файл (мс)
+  buffer_size: 100        # размер буфера считывания (количество записей)
+
+output:
+  directory: data         # директория хранения данных измерений и результатов валидации
+
+validator_settings:
+  delta_min: 9            # минимальное время между отсчётами
+  delta_max: 11           # максимальное время между отсчётами
+  valid_block_length: 20  # сколько подряд точек считать "валидным периодом"
