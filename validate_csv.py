@@ -8,7 +8,7 @@ config = ConfigManager.get_instance()
 
 settings = config.get("validator_settings", {})
 
-REQUIRED_SENSORS = {"HR", "HL", "FR", "FL"}
+REQUIRED_SENSORS = set(config.get("sensors.ids", []))
 
 DELTA_MIN = settings.get("delta_min", [])
 DELTA_MAX = settings.get("delta_max", [])
@@ -40,29 +40,29 @@ def validate_sensor_file(sensor_id, file_path):
     try:
         df = pd.read_csv(file_path, sep=r"\s+", header=None, engine="python")
     except pd.errors.EmptyDataError:
-        return pd.DataFrame(), False, "Файл пуст"
+        return pd.DataFrame(), False, "File is empty"
 
     if df.empty or len(df) < 2:
-        return df, False, "Недостаточно данных"
+        return df, False, "Not enough data"
 
     df.columns = ["Sensor", "Timestamp", "X", "Y", "Z"]
     df["Timestamp"] = df["Timestamp"].astype(int)
     df["ValidPeriod"] = detect_valid_periods(df["Timestamp"])
     out_of_range = ((df["Timestamp"].diff() < DELTA_MIN) | (df["Timestamp"].diff() > DELTA_MAX)).sum()
     if out_of_range:
-        return df, False, f"Найдены отклонения по времени: {out_of_range}, всего строк: {len(df)}"
-    return df, True, f"ОК, отклонений по времени: {out_of_range}, всего строк: {len(df)}"
+        return df, False, f"Timing deviations found: {out_of_range}, total rows: {len(df)}"
+    return df, True, f"OK, timing deviations: {out_of_range}, total rows: {len(df)}"
 
 def validate_group(timestamp, files_dict, folder_path="data"):
-    print(f"\n🧪 Валидация эксперимента: {timestamp}")
+    print(f"\n🧪 Validating experiment: {timestamp}")
     result_dfs = {}
     row_counts = {}
 
-    # Проверка каждого сенсора
+    # Check each sensor
     for sensor in REQUIRED_SENSORS:
         path = files_dict.get(sensor)
         if not path:
-            print(f"{sensor}: ❌ - Файл отсутствует")
+            print(f"{sensor}: ❌ - File missing")
             result_dfs[sensor] = pd.DataFrame()
             continue
 
@@ -71,12 +71,12 @@ def validate_group(timestamp, files_dict, folder_path="data"):
         result_dfs[sensor] = df
         row_counts[sensor] = len(df)
 
-    # Проверка наличия всех сенсоров
+    # Check that all sensors are present
     missing = {s for s in REQUIRED_SENSORS if result_dfs[s].empty}
     if missing:
-        print(f"❌ Нет данных от сенсоров: {', '.join(missing)}")
+        print(f"❌ No data from sensors: {', '.join(missing)}")
 
-    # Проверка количества строк (только если все сенсоры есть)
+    # Check row counts (only if all sensors are present)
     if not missing:
         lengths = list(row_counts.values())
         max_len = max(lengths)
@@ -84,11 +84,11 @@ def validate_group(timestamp, files_dict, folder_path="data"):
         diff = max_len - min_len
         allowed_diff = max(4, (max_len // 6000) * 4)
         if diff > allowed_diff:
-            print(f"❌ Разница в количестве строк превышает допустимую: {diff} > {allowed_diff}")
+            print(f"❌ Row count difference exceeds the allowed threshold: {diff} > {allowed_diff}")
         else:
-            print(f"✅ Кол-во строк в пределах нормы (разница {diff} ≤ {allowed_diff})")
+            print(f"✅ Row counts within tolerance (difference {diff} ≤ {allowed_diff})")
 
-    # Сохранение Excel
+    # Save Excel report
     output_name = f"experiment_{timestamp}.xlsx"
     output_path = os.path.join(folder_path, output_name)
     with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
@@ -98,7 +98,7 @@ def validate_group(timestamp, files_dict, folder_path="data"):
             else:
                 df.to_excel(writer, sheet_name=sensor, index=False)
 
-    print(f"📄 Отчёт сохранён: {output_path}")
+    print(f"📄 Report saved: {output_path}")
 
 def validate_all(folder_path="data"):
     files = glob(os.path.join(folder_path, "*.csv"))
@@ -110,7 +110,7 @@ def validate_all(folder_path="data"):
             grouped[timestamp][sensor] = file
 
     if not grouped:
-        print("❌ Не найдено подходящих файлов для анализа.")
+        print("❌ No matching files found to analyze.")
         return
 
     for timestamp, files_dict in grouped.items():

@@ -9,7 +9,7 @@ from config_loader import ConfigManager
 
 class PortHandler(threading.Thread):
     """
-    Класс для работы с последовательным портом.
+    Reads lines from a single serial port and pushes them into a shared queue.
     """
     def __init__(self, port: str, output_queue: Queue):
         super().__init__(daemon=True)
@@ -45,7 +45,6 @@ class PortHandler(threading.Thread):
                     self.output_queue.put(line)
             except Exception as e:
                 self.logger.error(f"[{self.port}] Read error: {e}")
-            # time.sleep(0.001)
 
     def stop(self):
         self._running.clear()

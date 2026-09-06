@@ -8,8 +8,8 @@ from logger import LoggerSingleton
 class Dispatcher(threading.Thread):
     def __init__(self, input_queue: Queue, sensor_queues: dict):
         """
-        :param input_queue: очередь со всеми входящими строками от всех портов
-        :param sensor_queues: словарь очередей по датчикам, ключи: HR, HL, FR, FL
+        :param input_queue: queue receiving raw lines from all serial ports
+        :param sensor_queues: per-sensor queues, keyed by sensor ID (e.g. HR, HL, FR, FL)
         """
         super().__init__(daemon=True)
         self.input_queue = input_queue
