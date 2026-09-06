@@ -12,8 +12,8 @@ from config_loader import ConfigManager
 class CSVWriter(threading.Thread):
     def __init__(self, sensor_id: str, sensor_queue: Queue):
         """
-        :param sensor_id: идентификатор датчика (например, HR)
-        :param sensor_queue: очередь с данными для этого датчика
+        :param sensor_id: sensor identifier (e.g. HR)
+        :param sensor_queue: queue of incoming lines for this sensor
         """
         super().__init__(daemon=True)
         self.sensor_id = sensor_id
@@ -27,7 +27,7 @@ class CSVWriter(threading.Thread):
         self.buffer_size = self.config.get("buffer.buffer_size", 100)
         self.flush_interval = self.config.get("buffer.flush_interval_ms", 1000) / 1000.0
 
-        # файл с именем вида HR_2025-03-25_13-58-00.csv
+        # file name pattern: HR_2025-03-25_13-58-00.csv
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.file_path = os.path.join(self.output_dir, f"{self.sensor_id}_{timestamp}.csv")
 
@@ -43,19 +43,19 @@ class CSVWriter(threading.Thread):
             now = time.time()
 
             try:
-                # non-blocking get, если пусто — идем дальше
+                # non-blocking get; move on if the queue is empty
                 line = self.queue.get(timeout=0.01)
                 self.buffer.append(line)
 
             except Empty:
                 pass
 
-            # условия записи: либо буфер заполнен, либо пришло время сброса
+            # flush when the buffer is full or the flush interval has elapsed
             if len(self.buffer) >= self.buffer_size or (now - last_flush_time) >= self.flush_interval:
                 self.flush_to_file()
                 last_flush_time = now
 
-        # финальный сброс при завершении
+        # final flush on shutdown
         if self.buffer:
             self.flush_to_file()
         self.logger.info(f"[{self.sensor_id}] CSV writer stopped.")

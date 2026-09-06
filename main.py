@@ -12,7 +12,7 @@ from csv_writer import CSVWriter
 
 
 def main():
-    # Загрузка конфигурации и логгера
+    # Load configuration and logger
     config = ConfigManager.get_instance()
     logger = LoggerSingleton.get_instance()
 
@@ -21,23 +21,27 @@ def main():
         logger.error("No serial ports defined in config.")
         sys.exit(1)
 
-    # Очереди
+    sensor_ids = config.get("sensors.ids", [])
+    if not sensor_ids:
+        logger.error("No sensor IDs defined in config.")
+        sys.exit(1)
+
+    # Queues
     raw_data_queue = Queue()
-    sensor_ids = ["HR", "HL", "FR", "FL"]
     sensor_queues = {sid: Queue() for sid in sensor_ids}
 
-    # Запуск портов
+    # Start port readers
     handlers = []
     for port in serial_ports:
         handler = PortHandler(port, raw_data_queue)
         handler.start()
         handlers.append(handler)
 
-    # Запуск диспетчера
+    # Start the dispatcher
     dispatcher = Dispatcher(raw_data_queue, sensor_queues)
     dispatcher.start()
 
-    # Запуск писателей CSV
+    # Start CSV writers
     writers = {}
     for sid in sensor_ids:
         writer = CSVWriter(sid, sensor_queues[sid])
@@ -46,7 +50,7 @@ def main():
 
     logger.info("System started. Press Ctrl+C to stop.")
 
-    # Ожидание Ctrl+C и graceful shutdown
+    # Wait for Ctrl+C and shut down gracefully
     try:
         while True:
             time.sleep(1)
@@ -59,7 +63,7 @@ def main():
         for writer in writers.values():
             writer.stop()
 
-        # Подождать завершения
+        # Wait for threads to finish
         for handler in handlers:
             handler.join()
         dispatcher.join()

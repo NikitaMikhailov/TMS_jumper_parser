@@ -25,7 +25,7 @@ class ConfigManager:
             with open(self.config_path, "r", encoding="utf-8") as file:
                 return yaml.safe_load(file)
         except Exception as e:
-            print(f"Ошибка загрузки конфигурации: {e}")
+            print(f"Failed to load configuration: {e}")
             return {}
 
     def get(self, key, default=None):
